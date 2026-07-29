@@ -1,0 +1,31 @@
+spring:
+
+  application:
+    name: hotel-reservation-engine
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hotel_reservation_db
+    username: postgres
+    password: Pratik@9881
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    show-sql: true
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  jackson:
+    time-zone: Asia/Kolkata
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
