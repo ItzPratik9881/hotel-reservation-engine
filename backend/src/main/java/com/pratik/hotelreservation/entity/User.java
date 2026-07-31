@@ -39,7 +39,7 @@ public class User {
     private Role role;
 
     @Column(nullable = false)
-    private Boolean enabled;
+    private boolean enabled;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -52,9 +52,7 @@ public class User {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
 
-        if (enabled == null) {
-            enabled = true;
-        }
+        enabled = true;
     }
 
     @PreUpdate

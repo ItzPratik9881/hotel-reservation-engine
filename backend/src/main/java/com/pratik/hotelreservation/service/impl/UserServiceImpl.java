@@ -8,7 +8,6 @@ import com.pratik.hotelreservation.exception.DuplicateResourceException;
 import com.pratik.hotelreservation.mapper.UserMapper;
 import com.pratik.hotelreservation.repository.UserRepository;
 import com.pratik.hotelreservation.service.UserService;
-import com.pratik.hotelreservation.exception.DuplicateResourceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
