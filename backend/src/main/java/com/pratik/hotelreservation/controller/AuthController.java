@@ -38,4 +38,9 @@ public class AuthController {
                 authService.login(request)
         );
     }
+
+    @GetMapping("/hello")
+    public String hello() {
+        return "JWT Authentication Working Successfully!";
+    }
 }
