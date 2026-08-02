@@ -23,7 +23,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleResourceNotFoundException(
             ResourceNotFoundException ex) {
 
-        ApiResponse<Object> response = ApiResponse.error(ex.getMessage());
+        ApiResponse<Object> response = ApiResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .data(null)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }

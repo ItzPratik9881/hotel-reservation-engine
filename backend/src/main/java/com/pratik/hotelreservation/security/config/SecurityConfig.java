@@ -53,31 +53,32 @@ public class SecurityConfig {
             throws Exception {
 
         http
-        .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf.disable())
 
-        .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(session ->
+                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-        .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/api/v1/auth/**",
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**",
-                        "/actuator/**"
-                ).permitAll()
-                .anyRequest().authenticated()
-        )
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(
+                            "/api/v1/auth/**",
+                            "/swagger-ui/**",
+                            "/v3/api-docs/**",
+                            "/actuator/**"
+                    ).permitAll()
 
-        .authenticationProvider(authenticationProvider())
+                    .anyRequest().authenticated()
+            )
 
-        .addFilterBefore(
-                jwtAuthenticationFilter,
-                UsernamePasswordAuthenticationFilter.class
-        )
+            .authenticationProvider(authenticationProvider())
 
-        .httpBasic(httpBasic -> httpBasic.disable())
+            .addFilterBefore(
+                    jwtAuthenticationFilter,
+                    UsernamePasswordAuthenticationFilter.class
+            )
 
-                .formLogin(form -> form.disable());
+            .httpBasic(basic -> basic.disable())
+
+            .formLogin(form -> form.disable());
 
                 return http.build();
         }
