@@ -5,8 +5,10 @@ import com.pratik.hotelreservation.dto.response.HotelResponse;
 import com.pratik.hotelreservation.entity.Hotel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.stereotype.Component;
 
 @Mapper(componentModel = "spring")
+@Component
 public interface HotelMapper {
 
     @Mapping(target = "id", ignore = true)

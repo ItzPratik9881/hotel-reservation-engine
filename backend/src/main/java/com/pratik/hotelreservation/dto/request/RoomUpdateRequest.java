@@ -1,0 +1,31 @@
+package com.pratik.hotelreservation.dto.request;
+
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RoomUpdateRequest {
+
+    @NotBlank
+    private String roomNumber;
+
+    @NotBlank
+    private String roomType;
+
+    @NotNull
+    @Min(1)
+    private Integer capacity;
+
+    @NotNull
+    @DecimalMin(value = "0.01")
+    private BigDecimal pricePerNight;
+
+    @NotNull
+    private Boolean available;
+}

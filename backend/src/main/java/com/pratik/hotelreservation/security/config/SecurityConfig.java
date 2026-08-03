@@ -66,6 +66,11 @@ public class SecurityConfig {
                             "/actuator/**"
                     ).permitAll()
 
+                    .requestMatchers(
+                            "/api/v1/hotels/**",
+                            "/api/v1/rooms/**"
+                    ).authenticated()
+
                     .anyRequest().authenticated()
             )
 
