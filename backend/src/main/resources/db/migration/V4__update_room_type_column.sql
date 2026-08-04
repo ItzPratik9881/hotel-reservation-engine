@@ -1,0 +1,2 @@
+ALTER TABLE rooms
+ALTER COLUMN room_type TYPE VARCHAR(50);

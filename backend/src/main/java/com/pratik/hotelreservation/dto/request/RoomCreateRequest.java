@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+import com.pratik.hotelreservation.enums.RoomType;
+
 @Getter
 @Setter
 @Builder
@@ -16,7 +18,7 @@ public class RoomCreateRequest {
     private String roomNumber;
 
     @NotBlank(message = "Room type is required")
-    private String roomType;
+    private RoomType roomType;
 
     @NotNull(message = "Capacity is required")
     @Min(value = 1)

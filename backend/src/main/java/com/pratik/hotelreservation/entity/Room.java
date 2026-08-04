@@ -5,6 +5,10 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
+
+import com.pratik.hotelreservation.enums.RoomType;
 
 @Entity
 @Table(name = "rooms")
@@ -22,8 +26,9 @@ public class Room {
     @Column(nullable = false)
     private String roomNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String roomType;
+    private RoomType roomType;
 
     @Column(nullable = false)
     private Integer capacity;
@@ -58,4 +63,13 @@ public class Room {
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    
+    @OneToMany(
+        mappedBy = "room",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true
+    )
+    @Builder.Default
+    private List<Reservation> reservations = new ArrayList<>();
 }

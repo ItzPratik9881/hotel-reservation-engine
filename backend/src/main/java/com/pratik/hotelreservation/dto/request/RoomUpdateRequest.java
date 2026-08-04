@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+import com.pratik.hotelreservation.enums.RoomType;
+
 @Getter
 @Setter
 @Builder
@@ -16,7 +18,7 @@ public class RoomUpdateRequest {
     private String roomNumber;
 
     @NotBlank
-    private String roomType;
+    private RoomType roomType;
 
     @NotNull
     @Min(1)
