@@ -69,7 +69,8 @@ public class SecurityConfig {
                     .requestMatchers(
                             "/api/v1/hotels/**",
                             "/api/v1/rooms/**",
-                            "/api/v1/reservations/**"
+                            "/api/v1/reservations/**",
+                            "/api/v1/payments/**"
                     ).authenticated()
 
                     .anyRequest().authenticated()
