@@ -6,6 +6,7 @@ import com.pratik.hotelreservation.entity.Reservation;
 import com.pratik.hotelreservation.entity.Room;
 import com.pratik.hotelreservation.entity.User;
 import com.pratik.hotelreservation.enums.BookingStatus;
+import com.pratik.hotelreservation.exception.BusinessException;
 import com.pratik.hotelreservation.exception.ResourceNotFoundException;
 import com.pratik.hotelreservation.mapper.ReservationMapper;
 import com.pratik.hotelreservation.repository.ReservationRepository;
@@ -14,6 +15,7 @@ import com.pratik.hotelreservation.repository.UserRepository;
 import com.pratik.hotelreservation.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
@@ -29,8 +31,8 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationMapper reservationMapper;
 
     @Override
-    public ReservationResponse createReservation(
-            ReservationCreateRequest request) {
+    @Transactional
+    public ReservationResponse createReservation(ReservationCreateRequest request) {
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() ->
@@ -41,69 +43,56 @@ public class ReservationServiceImpl implements ReservationService {
                         new ResourceNotFoundException("Room not found"));
 
         if (!room.getAvailable()) {
-            throw new IllegalArgumentException(
-                    "Room is currently unavailable");
+            throw new BusinessException("Room is currently unavailable");
         }
 
         if (request.getNumberOfGuests() > room.getCapacity()) {
-            throw new IllegalArgumentException(
-                    "Room capacity exceeded");
+            throw new BusinessException("Room capacity exceeded");
         }
 
-        if (!request.getCheckOutDate()
-                .isAfter(request.getCheckInDate())) {
-
-            throw new IllegalArgumentException(
+        if (!request.getCheckOutDate().isAfter(request.getCheckInDate())) {
+            throw new BusinessException(
                     "Check-out date must be after check-in date");
         }
 
-        boolean roomBooked =
-                !reservationRepository
-                        .findByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
-                                room.getId(),
-                                request.getCheckInDate(),
-                                request.getCheckOutDate()
-                        )
-                        .isEmpty();
+        boolean roomBooked = !reservationRepository
+                .findByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
+                        room.getId(),
+                        request.getCheckInDate(),
+                        request.getCheckOutDate())
+                .isEmpty();
 
         if (roomBooked) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
                     "Room is already booked for the selected dates");
         }
 
-        long nights =
-                ChronoUnit.DAYS.between(
-                        request.getCheckInDate(),
-                        request.getCheckOutDate()
-                );
+        long nights = ChronoUnit.DAYS.between(
+                request.getCheckInDate(),
+                request.getCheckOutDate());
 
-        BigDecimal totalPrice =
-                room.getPricePerNight()
-                        .multiply(BigDecimal.valueOf(nights));
+        BigDecimal totalPrice = room.getPricePerNight()
+                .multiply(BigDecimal.valueOf(nights));
 
-        Reservation reservation =
-                reservationMapper.toEntity(request);
+        Reservation reservation = reservationMapper.toEntity(request);
 
         reservation.setUser(user);
         reservation.setRoom(room);
-        reservation.setBookingStatus(
-                BookingStatus.CONFIRMED);
+        reservation.setBookingStatus(BookingStatus.CONFIRMED);
         reservation.setTotalPrice(totalPrice);
 
-        Reservation saved =
+        Reservation savedReservation =
                 reservationRepository.save(reservation);
 
-        return reservationMapper.toResponse(saved);
+        return reservationMapper.toResponse(savedReservation);
     }
 
     @Override
     public ReservationResponse getReservationById(Long id) {
 
-        Reservation reservation =
-                reservationRepository.findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Reservation not found"));
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Reservation not found"));
 
         return reservationMapper.toResponse(reservation);
     }
@@ -136,16 +125,55 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
+    @Transactional
     public void cancelReservation(Long reservationId) {
 
-        Reservation reservation =
-                reservationRepository.findById(reservationId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Reservation not found"));
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Reservation not found"));
 
-        reservation.setBookingStatus(
-                BookingStatus.CANCELLED);
+        if (reservation.getBookingStatus() == BookingStatus.CHECKED_OUT) {
+            throw new BusinessException(
+                    "Completed reservations cannot be cancelled");
+        }
+
+        reservation.setBookingStatus(BookingStatus.CANCELLED);
+
+        reservationRepository.save(reservation);
+    }
+
+    @Override
+    @Transactional
+    public void checkIn(Long reservationId) {
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Reservation not found"));
+
+        if (reservation.getBookingStatus() != BookingStatus.CONFIRMED) {
+            throw new BusinessException(
+                    "Only confirmed reservations can be checked in");
+        }
+
+        reservation.setBookingStatus(BookingStatus.CHECKED_IN);
+
+        reservationRepository.save(reservation);
+    }
+
+    @Override
+    @Transactional
+    public void checkOut(Long reservationId) {
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Reservation not found"));
+
+        if (reservation.getBookingStatus() != BookingStatus.CHECKED_IN) {
+            throw new BusinessException(
+                    "Only checked-in reservations can be checked out");
+        }
+
+        reservation.setBookingStatus(BookingStatus.CHECKED_OUT);
 
         reservationRepository.save(reservation);
     }

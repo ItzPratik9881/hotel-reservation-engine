@@ -6,6 +6,7 @@ import com.pratik.hotelreservation.entity.Payment;
 import com.pratik.hotelreservation.entity.Reservation;
 import com.pratik.hotelreservation.enums.BookingStatus;
 import com.pratik.hotelreservation.enums.PaymentStatus;
+import com.pratik.hotelreservation.exception.BusinessException;
 import com.pratik.hotelreservation.exception.ResourceNotFoundException;
 import com.pratik.hotelreservation.mapper.PaymentMapper;
 import com.pratik.hotelreservation.repository.PaymentRepository;
@@ -13,6 +14,7 @@ import com.pratik.hotelreservation.repository.ReservationRepository;
 import com.pratik.hotelreservation.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,20 +29,32 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
 
     @Override
+    @Transactional
     public PaymentResponse makePayment(PaymentRequest request) {
 
         Reservation reservation = reservationRepository.findById(request.getReservationId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Reservation not found"));
 
+        // Prevent duplicate successful payments
+        if (paymentRepository.existsByReservationAndPaymentStatus(
+                reservation,
+                PaymentStatus.SUCCESS)) {
+
+            throw new BusinessException(
+                    "Payment has already been completed for this reservation");
+        }
+
+        // Prevent payment for cancelled reservations
         if (reservation.getBookingStatus() == BookingStatus.CANCELLED) {
-            throw new IllegalArgumentException(
+
+            throw new BusinessException(
                     "Cannot make payment for a cancelled reservation");
         }
 
         Payment payment = Payment.builder()
                 .reservation(reservation)
-                .amount(request.getAmount())
+                .amount(reservation.getTotalPrice())
                 .paymentMethod(request.getPaymentMethod())
                 .paymentStatus(PaymentStatus.SUCCESS)
                 .transactionId(UUID.randomUUID().toString())
@@ -49,6 +63,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment savedPayment = paymentRepository.save(payment);
 
+        // Update reservation status after successful payment
         reservation.setBookingStatus(BookingStatus.CONFIRMED);
         reservationRepository.save(reservation);
 

@@ -77,4 +77,26 @@ public class ReservationController {
                 "Cancelled"
         );
     }
+
+    @PutMapping("/{id}/check-in")
+    public ApiResponse<String> checkIn(@PathVariable Long id) {
+
+        reservationService.checkIn(id);
+
+        return ApiResponse.success(
+                "Guest checked in successfully",
+                "CHECKED_IN"
+        );
+   }
+
+   @PutMapping("/{id}/check-out")
+   public ApiResponse<String> checkOut(@PathVariable Long id) {
+
+        reservationService.checkOut(id);
+
+        return ApiResponse.success(
+                "Guest checked out successfully",
+                "CHECKED_OUT"
+        );
+   }
 }

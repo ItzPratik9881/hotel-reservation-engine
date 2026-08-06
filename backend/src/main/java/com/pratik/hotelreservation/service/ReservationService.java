@@ -19,4 +19,8 @@ public interface ReservationService {
     List<ReservationResponse> getReservationsByRoom(Long roomId);
 
     void cancelReservation(Long reservationId);
+
+    void checkIn(Long reservationId);
+
+    void checkOut(Long reservationId);
 }
