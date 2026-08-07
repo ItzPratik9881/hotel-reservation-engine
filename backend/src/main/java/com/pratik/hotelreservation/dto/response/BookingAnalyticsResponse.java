@@ -5,19 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DashboardResponse {
-
-    private long totalHotels;
-
-    private long totalRooms;
-
-    private long totalUsers;
+public class BookingAnalyticsResponse {
 
     private long totalReservations;
 
@@ -28,12 +20,4 @@ public class DashboardResponse {
     private long checkedInReservations;
 
     private long checkedOutReservations;
-
-    private BigDecimal totalRevenue;
-
-    private long availableRooms;
-
-    private long occupiedRooms;
-
-    private BigDecimal occupancyRate;
 }

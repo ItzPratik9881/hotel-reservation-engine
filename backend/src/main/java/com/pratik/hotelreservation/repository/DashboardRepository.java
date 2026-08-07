@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Repository
 public interface DashboardRepository extends JpaRepository<Reservation, Long> {
@@ -32,5 +33,18 @@ public interface DashboardRepository extends JpaRepository<Reservation, Long> {
             """)
     BigDecimal calculateTotalRevenue(
             @Param("status") PaymentStatus status
+    );
+
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0)
+            FROM Payment p
+            WHERE p.paymentStatus = :status
+            AND p.paidAt >= :start
+            AND p.paidAt < :end
+            """)
+    BigDecimal calculateRevenueBetween(
+            @Param("status") PaymentStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 }
