@@ -21,4 +21,8 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
             String roomNumber,
             Long hotelId
     );
+
+    long countByAvailableTrue();
+
+    long countByAvailableFalse();
 }
