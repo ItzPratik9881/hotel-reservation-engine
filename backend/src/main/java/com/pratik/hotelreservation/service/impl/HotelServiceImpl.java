@@ -10,7 +10,6 @@ import com.pratik.hotelreservation.repository.HotelRepository;
 import com.pratik.hotelreservation.service.HotelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +23,6 @@ public class HotelServiceImpl implements HotelService {
     private final HotelMapper hotelMapper;
 
     @Override
-    @CacheEvict(value = "hotels", allEntries = true)
     public HotelResponse createHotel(HotelCreateRequest request) {
 
         Hotel hotel = hotelMapper.toEntity(request);
@@ -37,15 +35,14 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    @CachePut(value = "hotels", key = "#id")
+    @CacheEvict(value = "hotels", key = "#id")
     public HotelResponse updateHotel(
             Long id,
             HotelUpdateRequest request) {
 
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Hotel not found"));
+                        new ResourceNotFoundException("Hotel not found"));
 
         hotel.setName(request.getName());
         hotel.setAddress(request.getAddress());
@@ -56,8 +53,7 @@ public class HotelServiceImpl implements HotelService {
         hotel.setDescription(request.getDescription());
         hotel.setActive(request.getActive());
 
-        Hotel updatedHotel =
-                hotelRepository.save(hotel);
+        Hotel updatedHotel = hotelRepository.save(hotel);
 
         return hotelMapper.toResponse(updatedHotel);
     }
@@ -68,8 +64,7 @@ public class HotelServiceImpl implements HotelService {
 
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Hotel not found"));
+                        new ResourceNotFoundException("Hotel not found"));
 
         return hotelMapper.toResponse(hotel);
     }
@@ -89,8 +84,7 @@ public class HotelServiceImpl implements HotelService {
 
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Hotel not found"));
+                        new ResourceNotFoundException("Hotel not found"));
 
         hotelRepository.delete(hotel);
     }
