@@ -27,6 +27,8 @@ server:
 
 logging:
   level:
+    root: INFO
+    com.pratik.hotelreservation: INFO
     org.springframework.security: INFO
     org.hibernate.SQL: DEBUG
 

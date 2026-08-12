@@ -4,7 +4,11 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -29,12 +33,12 @@ public class HotelUpdateRequest {
     private String country;
 
     @NotNull(message = "Star rating is required")
-    @Min(1)
-    @Max(5)
+    @Min(value = 1, message = "Minimum rating is 1")
+    @Max(value = 5, message = "Maximum rating is 5")
     private Integer starRating;
 
     private String description;
 
-    @NotNull
+    @NotNull(message = "Active status is required")
     private Boolean active;
 }

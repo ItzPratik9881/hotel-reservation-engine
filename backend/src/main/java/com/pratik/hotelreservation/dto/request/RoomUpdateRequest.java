@@ -1,11 +1,17 @@
 package com.pratik.hotelreservation.dto.request;
 
-import jakarta.validation.constraints.*;
-import lombok.*;
+import com.pratik.hotelreservation.enums.RoomType;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
-
-import com.pratik.hotelreservation.enums.RoomType;
 
 @Getter
 @Setter
@@ -14,20 +20,23 @@ import com.pratik.hotelreservation.enums.RoomType;
 @AllArgsConstructor
 public class RoomUpdateRequest {
 
-    @NotBlank
+    @NotBlank(message = "Room number is required")
     private String roomNumber;
 
-    @NotNull
+    @NotNull(message = "Room type is required")
     private RoomType roomType;
 
-    @NotNull
-    @Min(1)
+    @NotNull(message = "Capacity is required")
+    @Min(value = 1, message = "Capacity must be at least 1")
     private Integer capacity;
 
-    @NotNull
-    @DecimalMin(value = "0.01")
+    @NotNull(message = "Price per night is required")
+    @DecimalMin(
+            value = "0.01",
+            message = "Price per night must be greater than 0"
+    )
     private BigDecimal pricePerNight;
 
-    @NotNull
+    @NotNull(message = "Availability status is required")
     private Boolean available;
 }

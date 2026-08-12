@@ -5,6 +5,8 @@ import com.pratik.hotelreservation.dto.request.HotelCreateRequest;
 import com.pratik.hotelreservation.dto.request.HotelUpdateRequest;
 import com.pratik.hotelreservation.dto.response.HotelResponse;
 import com.pratik.hotelreservation.service.HotelService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +16,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/hotels")
 @RequiredArgsConstructor
+@Tag(
+        name = "Hotels",
+        description = "Hotel management and CRUD APIs"
+)
 public class HotelController {
 
     private final HotelService hotelService;
 
+    @Operation(
+            summary = "Create a hotel",
+            description = "Creates a new hotel in the reservation system."
+    )
     @PostMapping
     public ApiResponse<HotelResponse> createHotel(
             @Valid @RequestBody HotelCreateRequest request) {
@@ -28,6 +38,10 @@ public class HotelController {
         );
     }
 
+    @Operation(
+            summary = "Get hotel by ID",
+            description = "Fetches a hotel using its unique ID."
+    )
     @GetMapping("/{id}")
     public ApiResponse<HotelResponse> getHotelById(
             @PathVariable Long id) {
@@ -38,6 +52,10 @@ public class HotelController {
         );
     }
 
+    @Operation(
+            summary = "Get all hotels",
+            description = "Returns all hotels available in the system."
+    )
     @GetMapping
     public ApiResponse<List<HotelResponse>> getAllHotels() {
 
@@ -47,6 +65,10 @@ public class HotelController {
         );
     }
 
+    @Operation(
+            summary = "Update a hotel",
+            description = "Updates the details of an existing hotel."
+    )
     @PutMapping("/{id}")
     public ApiResponse<HotelResponse> updateHotel(
             @PathVariable Long id,
@@ -58,6 +80,10 @@ public class HotelController {
         );
     }
 
+    @Operation(
+            summary = "Delete a hotel",
+            description = "Deletes an existing hotel from the system."
+    )
     @DeleteMapping("/{id}")
     public ApiResponse<String> deleteHotel(
             @PathVariable Long id) {

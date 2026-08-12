@@ -21,24 +21,17 @@ import java.time.Duration;
 public class RedisConfig {
 
     @Bean
-    public ObjectMapper redisObjectMapper() {
+    public GenericJackson2JsonRedisSerializer redisSerializer() {
 
-        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectMapper redisObjectMapper = new ObjectMapper();
 
-        objectMapper.registerModule(new JavaTimeModule());
+        redisObjectMapper.registerModule(new JavaTimeModule());
 
-        objectMapper.activateDefaultTyping(
-                objectMapper.getPolymorphicTypeValidator(),
+        redisObjectMapper.activateDefaultTyping(
+                redisObjectMapper.getPolymorphicTypeValidator(),
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY
         );
-
-        return objectMapper;
-    }
-
-    @Bean
-    public GenericJackson2JsonRedisSerializer redisSerializer(
-            ObjectMapper redisObjectMapper) {
 
         return new GenericJackson2JsonRedisSerializer(
                 redisObjectMapper
