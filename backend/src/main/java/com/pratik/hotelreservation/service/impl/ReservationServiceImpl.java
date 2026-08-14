@@ -12,7 +12,7 @@ import com.pratik.hotelreservation.mapper.ReservationMapper;
 import com.pratik.hotelreservation.repository.ReservationRepository;
 import com.pratik.hotelreservation.repository.RoomRepository;
 import com.pratik.hotelreservation.repository.UserRepository;
-import com.pratik.hotelreservation.service.AuditLogService;
+import com.pratik.hotelreservation.service.DistributedLockService;
 import com.pratik.hotelreservation.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,152 +32,109 @@ public class ReservationServiceImpl implements ReservationService {
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
     private final ReservationMapper reservationMapper;
-    private final AuditLogService auditLogService;
+    private final DistributedLockService distributedLockService;
 
     @Override
     @Transactional
     public ReservationResponse createReservation(
             ReservationCreateRequest request) {
 
-        log.info(
-                "Creating reservation for userId: {}, roomId: {}",
-                request.getUserId(),
-                request.getRoomId()
-        );
-
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> {
-                    log.warn(
-                            "User not found with id: {}",
-                            request.getUserId()
-                    );
-                    return new ResourceNotFoundException("User not found");
-                });
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
 
         Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> {
-                    log.warn(
-                            "Room not found with id: {}",
-                            request.getRoomId()
-                    );
-                    return new ResourceNotFoundException("Room not found");
-                });
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Room not found"));
 
-        if (!room.getAvailable()) {
+        String lockKey = "room-lock:" + room.getId();
 
-            log.warn(
-                    "Reservation rejected. Room unavailable: {}",
-                    room.getId()
-            );
-
+        if (!distributedLockService.tryLock(lockKey)) {
             throw new BusinessException(
-                    "Room is currently unavailable"
+                    "Room is currently being booked by another user. Please try again."
             );
         }
 
-        if (request.getNumberOfGuests() > room.getCapacity()) {
+        try {
 
-            log.warn(
-                    "Reservation rejected. Capacity exceeded for room: {}",
+            log.info(
+                    "Processing reservation for room ID: {}",
                     room.getId()
             );
 
-            throw new BusinessException(
-                    "Room capacity exceeded"
-            );
-        }
+            if (!room.getAvailable()) {
+                throw new BusinessException(
+                        "Room is currently unavailable");
+            }
 
-        if (!request.getCheckOutDate()
-                .isAfter(request.getCheckInDate())) {
+            if (request.getNumberOfGuests() > room.getCapacity()) {
+                throw new BusinessException(
+                        "Room capacity exceeded");
+            }
 
-            log.warn(
-                    "Reservation rejected. Invalid dates for room: {}",
+            if (!request.getCheckOutDate()
+                    .isAfter(request.getCheckInDate())) {
+
+                throw new BusinessException(
+                        "Check-out date must be after check-in date");
+            }
+
+            boolean roomBooked = !reservationRepository
+                    .findByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
+                            room.getId(),
+                            request.getCheckInDate(),
+                            request.getCheckOutDate())
+                    .isEmpty();
+
+            if (roomBooked) {
+                throw new BusinessException(
+                        "Room is already booked for the selected dates");
+            }
+
+            long nights = ChronoUnit.DAYS.between(
+                    request.getCheckInDate(),
+                    request.getCheckOutDate());
+
+            BigDecimal totalPrice = room.getPricePerNight()
+                    .multiply(BigDecimal.valueOf(nights));
+
+            Reservation reservation =
+                    reservationMapper.toEntity(request);
+
+            reservation.setUser(user);
+            reservation.setRoom(room);
+            reservation.setBookingStatus(
+                    BookingStatus.CONFIRMED);
+            reservation.setTotalPrice(totalPrice);
+
+            Reservation savedReservation =
+                    reservationRepository.save(reservation);
+
+            log.info(
+                    "Reservation created successfully for room ID: {}",
                     room.getId()
             );
 
-            throw new BusinessException(
-                    "Check-out date must be after check-in date"
-            );
-        }
+            return reservationMapper.toResponse(savedReservation);
 
-        boolean roomBooked = !reservationRepository
-                .findByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
-                        room.getId(),
-                        request.getCheckInDate(),
-                        request.getCheckOutDate()
-                )
-                .isEmpty();
+        } finally {
 
-        if (roomBooked) {
+            distributedLockService.unlock(lockKey);
 
-            log.warn(
-                    "Reservation rejected. Room {} already booked for selected dates",
+            log.info(
+                    "Reservation lock released for room ID: {}",
                     room.getId()
             );
-
-            throw new BusinessException(
-                    "Room is already booked for the selected dates"
-            );
         }
-
-        long nights = ChronoUnit.DAYS.between(
-                request.getCheckInDate(),
-                request.getCheckOutDate()
-        );
-
-        BigDecimal totalPrice = room.getPricePerNight()
-                .multiply(BigDecimal.valueOf(nights));
-
-        Reservation reservation =
-                reservationMapper.toEntity(request);
-
-        reservation.setUser(user);
-        reservation.setRoom(room);
-        reservation.setBookingStatus(
-                BookingStatus.CONFIRMED
-        );
-        reservation.setTotalPrice(totalPrice);
-
-        Reservation savedReservation =
-                reservationRepository.save(reservation);
-
-        log.info(
-                "Reservation created successfully with id: {}",
-                savedReservation.getId()
-        );
-
-        auditLogService.logReservationCreated(
-                savedReservation.getId(),
-                request.getUserId(),
-                request.getRoomId()
-        );
-
-        return reservationMapper.toResponse(savedReservation);
     }
 
     @Override
     public ReservationResponse getReservationById(Long id) {
 
-        log.info(
-                "Fetching reservation with id: {}",
-                id
-        );
-
         Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn(
-                            "Reservation not found with id: {}",
-                            id
-                    );
-                    return new ResourceNotFoundException(
-                            "Reservation not found"
-                    );
-                });
-
-        log.info(
-                "Reservation fetched successfully with id: {}",
-                id
-        );
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Reservation not found"));
 
         return reservationMapper.toResponse(reservation);
     }
@@ -185,222 +142,98 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public List<ReservationResponse> getAllReservations() {
 
-        log.info("Fetching all reservations");
-
-        List<ReservationResponse> reservations =
-                reservationRepository.findAll()
-                        .stream()
-                        .map(reservationMapper::toResponse)
-                        .toList();
-
-        log.info(
-                "Successfully fetched {} reservations",
-                reservations.size()
-        );
-
-        return reservations;
+        return reservationRepository.findAll()
+                .stream()
+                .map(reservationMapper::toResponse)
+                .toList();
     }
 
     @Override
     public List<ReservationResponse> getReservationsByUser(
             Long userId) {
 
-        log.info(
-                "Fetching reservations for userId: {}",
-                userId
-        );
-
-        List<ReservationResponse> reservations =
-                reservationRepository.findByUserId(userId)
-                        .stream()
-                        .map(reservationMapper::toResponse)
-                        .toList();
-
-        log.info(
-                "Found {} reservations for userId: {}",
-                reservations.size(),
-                userId
-        );
-
-        return reservations;
+        return reservationRepository.findByUserId(userId)
+                .stream()
+                .map(reservationMapper::toResponse)
+                .toList();
     }
 
     @Override
     public List<ReservationResponse> getReservationsByRoom(
             Long roomId) {
 
-        log.info(
-                "Fetching reservations for roomId: {}",
-                roomId
-        );
-
-        List<ReservationResponse> reservations =
-                reservationRepository.findByRoomId(roomId)
-                        .stream()
-                        .map(reservationMapper::toResponse)
-                        .toList();
-
-        log.info(
-                "Found {} reservations for roomId: {}",
-                reservations.size(),
-                roomId
-        );
-
-        return reservations;
+        return reservationRepository.findByRoomId(roomId)
+                .stream()
+                .map(reservationMapper::toResponse)
+                .toList();
     }
 
     @Override
     @Transactional
     public void cancelReservation(Long reservationId) {
 
-        log.info(
-                "Cancelling reservation with id: {}",
+        Reservation reservation = reservationRepository.findById(
                 reservationId
-        );
-
-        Reservation reservation =
-                reservationRepository.findById(reservationId)
-                        .orElseThrow(() -> {
-                            log.warn(
-                                    "Reservation not found with id: {}",
-                                    reservationId
-                            );
-
-                            return new ResourceNotFoundException(
-                                    "Reservation not found"
-                            );
-                        });
+        ).orElseThrow(() ->
+                new ResourceNotFoundException(
+                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 == BookingStatus.CHECKED_OUT) {
 
-            log.warn(
-                    "Cancellation rejected. Reservation already checked out: {}",
-                    reservationId
-            );
-
             throw new BusinessException(
-                    "Completed reservations cannot be cancelled"
-            );
+                    "Completed reservations cannot be cancelled");
         }
 
         reservation.setBookingStatus(
-                BookingStatus.CANCELLED
-        );
+                BookingStatus.CANCELLED);
 
         reservationRepository.save(reservation);
-
-        auditLogService.logReservationCancelled(
-                reservationId
-        );
-
-        log.info(
-                "Reservation cancelled successfully with id: {}",
-                reservationId
-        );
     }
 
     @Override
     @Transactional
     public void checkIn(Long reservationId) {
 
-        log.info(
-                "Checking in reservation with id: {}",
+        Reservation reservation = reservationRepository.findById(
                 reservationId
-        );
-
-        Reservation reservation =
-                reservationRepository.findById(reservationId)
-                        .orElseThrow(() -> {
-                            log.warn(
-                                    "Reservation not found with id: {}",
-                                    reservationId
-                            );
-
-                            return new ResourceNotFoundException(
-                                    "Reservation not found"
-                            );
-                        });
+        ).orElseThrow(() ->
+                new ResourceNotFoundException(
+                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 != BookingStatus.CONFIRMED) {
 
-            log.warn(
-                    "Check-in rejected. Reservation {} has status: {}",
-                    reservationId,
-                    reservation.getBookingStatus()
-            );
-
             throw new BusinessException(
-                    "Only confirmed reservations can be checked in"
-            );
+                    "Only confirmed reservations can be checked in");
         }
 
         reservation.setBookingStatus(
-                BookingStatus.CHECKED_IN
-        );
+                BookingStatus.CHECKED_IN);
 
         reservationRepository.save(reservation);
-
-        auditLogService.logGuestCheckedIn(
-                reservationId
-        );
-
-        log.info(
-                "Guest checked in successfully for reservation: {}",
-                reservationId
-        );
     }
 
     @Override
     @Transactional
     public void checkOut(Long reservationId) {
 
-        log.info(
-                "Checking out reservation with id: {}",
+        Reservation reservation = reservationRepository.findById(
                 reservationId
-        );
-
-        Reservation reservation =
-                reservationRepository.findById(reservationId)
-                        .orElseThrow(() -> {
-                            log.warn(
-                                    "Reservation not found with id: {}",
-                                    reservationId
-                            );
-
-                            return new ResourceNotFoundException(
-                                    "Reservation not found"
-                            );
-                        });
+        ).orElseThrow(() ->
+                new ResourceNotFoundException(
+                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 != BookingStatus.CHECKED_IN) {
 
-            log.warn(
-                    "Check-out rejected. Reservation {} has status: {}",
-                    reservationId,
-                    reservation.getBookingStatus()
-            );
-
             throw new BusinessException(
-                    "Only checked-in reservations can be checked out"
-            );
+                    "Only checked-in reservations can be checked out");
         }
 
         reservation.setBookingStatus(
-                BookingStatus.CHECKED_OUT
-        );
+                BookingStatus.CHECKED_OUT);
 
         reservationRepository.save(reservation);
-
-        auditLogService.logGuestCheckedOut(
-                reservationId
-        );
-
-        log.info(
-                "Guest checked out successfully for reservation: {}",
-                reservationId
-        );
     }
 }
