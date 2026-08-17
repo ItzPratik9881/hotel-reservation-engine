@@ -21,4 +21,10 @@ public interface ReservationRepository
             LocalDate checkInDate,
             LocalDate checkOutDate
     );
+
+    boolean existsByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
+            Long roomId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    );
 }

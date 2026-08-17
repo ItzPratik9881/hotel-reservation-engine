@@ -79,12 +79,13 @@ public class ReservationServiceImpl implements ReservationService {
                         "Check-out date must be after check-in date");
             }
 
-            boolean roomBooked = !reservationRepository
-                    .findByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
-                            room.getId(),
-                            request.getCheckInDate(),
-                            request.getCheckOutDate())
-                    .isEmpty();
+            boolean roomBooked =
+                reservationRepository
+                        .existsByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
+                                room.getId(),
+                                request.getCheckInDate(),
+                                request.getCheckOutDate()
+                        );
 
             if (roomBooked) {
                 throw new BusinessException(
