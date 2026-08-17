@@ -12,6 +12,7 @@ import Hotels from "./pages/Hotels";
 import Rooms from "./pages/Rooms";
 import Booking from "./pages/Booking";
 import Reservations from "./pages/Reservations";
+import Payments from "./pages/Payments";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 function App() {
@@ -62,6 +63,11 @@ function App() {
           <Route
             path="/reservations"
             element={<Reservations />}
+          />
+
+          <Route
+            path="/payments"
+            element={<Payments />}
           />
 
         </Route>

@@ -157,6 +157,128 @@
   border: 1px solid #fecaca;
 }
 
+.pay-now-button {
+  margin-top: 8px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pay-now-button:hover {
+  background: #1d4ed8;
+}
+
+.payment-details-button {
+  margin-top: 8px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #16a34a;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payment-details-button:hover {
+  background: #15803d;
+}
+
+.payment-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+}
+
+.payment-modal {
+  width: 100%;
+  max-width: 430px;
+  padding: 30px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.payment-modal h2 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.payment-modal p {
+  margin: 8px 0;
+  color: #64748b;
+}
+
+.payment-amount {
+  margin: 20px 0;
+  color: #1e293b;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.payment-modal label {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.payment-modal select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+}
+
+.payment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.payment-actions button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payment-cancel-button {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.payment-confirm-button {
+  background: #2563eb;
+  color: white;
+}
+
+.payment-confirm-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.payment-confirm-button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .reservations-page {
     padding: 20px;
