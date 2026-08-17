@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,6 +51,20 @@ public class AuthController {
         return ApiResponse.success(
                 "Login successful",
                 authService.login(request)
+        );
+    }
+
+    @Operation(
+            summary = "Get current user",
+            description = "Returns the currently authenticated user's details."
+    )
+    @GetMapping("/me")
+    public ApiResponse<RegisterResponse> getCurrentUser(
+            Authentication authentication) {
+
+        return ApiResponse.success(
+                "Current user fetched successfully",
+                userService.getCurrentUser(authentication.getName())
         );
     }
 

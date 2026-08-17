@@ -10,6 +10,11 @@ export const loginUser = async (credentials) => {
   return response.data;
 };
 
+export const getCurrentUser = async () => {
+  const response = await api.get("/auth/me");
+  return response.data;
+};
+
 export const testAuthentication = async () => {
   const response = await api.get("/auth/hello");
   return response.data;

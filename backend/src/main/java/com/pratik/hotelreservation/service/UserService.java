@@ -7,4 +7,5 @@ public interface UserService {
 
     RegisterResponse register(RegisterRequest request);
 
+    RegisterResponse getCurrentUser(String email);
 }

@@ -37,4 +37,14 @@ public class UserServiceImpl implements UserService {
 
         return userMapper.toResponse(savedUser);
     }
+
+    @Override
+    public RegisterResponse getCurrentUser(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        return userMapper.toResponse(user);
+    }
 }
