@@ -13,8 +13,8 @@ function Hotels() {
   useEffect(() => {
     const loadHotels = async () => {
       try {
-        const data = await getAllHotels();
-        setHotels(data);
+        const response = await getAllHotels();
+        setHotels(response.data || []);
       } catch (error) {
         console.error("Failed to load hotels:", error);
         setError("Unable to load hotels. Please try again.");

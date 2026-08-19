@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser } from "../services/authService";
+import {
+  loginUser,
+  getCurrentUser,
+} from "../services/authService";
 import "../styles/Login.css";
 
 function Login() {
@@ -30,15 +33,45 @@ function Login() {
     setLoading(true);
 
     try {
+      // Step 1: Login
       const response = await loginUser(formData);
 
       const loginData = response.data;
 
-      localStorage.setItem("token", loginData.accessToken);
-      localStorage.setItem("tokenType", loginData.tokenType);
+      // Step 2: Store JWT
+      localStorage.setItem(
+        "token",
+        loginData.accessToken
+      );
 
-      navigate("/dashboard");
+      localStorage.setItem(
+        "tokenType",
+        loginData.tokenType
+      );
+
+      // Step 3: Get currently logged-in user
+      const userResponse = await getCurrentUser();
+
+      const user = userResponse.data;
+
+      console.log("Logged-in user:", user);
+
+      // Step 4: Store user information
+      localStorage.setItem(
+        "user",
+        JSON.stringify(user)
+      );
+
+      // Step 5: Redirect based on role
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+
     } catch (error) {
+      console.error("Login failed:", error);
+
       const message =
         error.response?.data?.message ||
         "Login failed. Please check your email and password.";
@@ -52,16 +85,26 @@ function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
+
         <div className="login-header">
           <h1>Hotel Reservation</h1>
-          <p>Welcome back! Please login to continue.</p>
+          <p>
+            Welcome back! Please login to continue.
+          </p>
         </div>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && (
+          <div className="login-error">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
+
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">
+              Email
+            </label>
 
             <input
               id="email"
@@ -75,7 +118,9 @@ function Login() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">
+              Password
+            </label>
 
             <input
               id="password"
@@ -93,14 +138,22 @@ function Login() {
             className="login-button"
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading
+              ? "Logging in..."
+              : "Login"}
           </button>
+
         </form>
 
         <div className="register-link">
-          <span>Don't have an account?</span>{" "}
-          <Link to="/register">Create an account</Link>
+          <span>
+            Don't have an account?
+          </span>{" "}
+          <Link to="/register">
+            Create an account
+          </Link>
         </div>
+
       </div>
     </div>
   );

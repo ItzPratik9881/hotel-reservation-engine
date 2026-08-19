@@ -1,0 +1,10 @@
+.admin-layout {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.admin-main-content {
+  margin-left: 260px;
+  min-height: 100vh;
+  padding: 30px;
+}

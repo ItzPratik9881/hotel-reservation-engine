@@ -411,8 +411,14 @@ function Reservations() {
 
                   <div className="reservation-info">
 
-                    <h2>
-                      Reservation #{reservation.id}
+                    <h2
+                      className="reservation-details-link"
+                      onClick={() =>
+                        navigate(`/reservations/${reservation.id}`)
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
+                      Reservation #{reservation.id} →
                     </h2>
 
                     <p>

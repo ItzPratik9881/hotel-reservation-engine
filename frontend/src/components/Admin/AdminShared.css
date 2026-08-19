@@ -1,0 +1,309 @@
+/* Shared layout used by AdminRooms, AdminReservations, AdminPayments, AdminUsers, AddRoom */
+
+.admin-page {
+  min-height: 100vh;
+  background: #f5f7fb;
+  padding: 40px 60px;
+  box-sizing: border-box;
+}
+
+.admin-page-header {
+  max-width: 1200px;
+  margin: 0 auto 30px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.admin-page-header h1 {
+  margin: 0;
+  color: #172b4d;
+  font-size: 34px;
+}
+
+.admin-page-header p {
+  margin-top: 8px;
+  color: #718096;
+  font-size: 16px;
+}
+
+.admin-page-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-back-button,
+.admin-primary-button,
+.admin-secondary-button {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-back-button {
+  background: #e7edf6;
+  color: #334e68;
+}
+
+.admin-back-button:hover {
+  background: #dce5f0;
+}
+
+.admin-primary-button {
+  background: #167c4d;
+  color: white;
+}
+
+.admin-primary-button:hover {
+  background: #11633d;
+}
+
+.admin-secondary-button {
+  background: #edf3fb;
+  color: #315a87;
+}
+
+.admin-secondary-button:hover {
+  background: #dfeaf9;
+}
+
+.admin-page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-page-loading,
+.admin-page-empty {
+  background: white;
+  border-radius: 15px;
+  padding: 60px 30px;
+  text-align: center;
+  color: #718096;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.06);
+}
+
+.admin-page-empty h2 {
+  color: #172b4d;
+  margin-bottom: 10px;
+}
+
+.admin-page-error {
+  background: #fff0f0;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.admin-page-success {
+  background: #e6ffed;
+  color: #16834e;
+  border: 1px solid #a7f3c0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* Filter bar */
+
+.admin-filter-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.admin-filter-bar select,
+.admin-filter-bar input {
+  padding: 10px 14px;
+  border: 1px solid #d9e0e8;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #172b4d;
+  background: white;
+  outline: none;
+}
+
+/* Table */
+
+.admin-table-wrapper {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.06);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table thead {
+  background: #f8fafc;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 14px 18px;
+  color: #52657a;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.admin-table td {
+  padding: 14px 18px;
+  color: #334e68;
+  border-bottom: 1px solid #edf0f4;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: #fbfcfe;
+}
+
+.admin-table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-table-action-button {
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-table-action-button.checkin {
+  background: #e6f4ff;
+  color: #1a5fb4;
+}
+
+.admin-table-action-button.checkout {
+  background: #edf3fb;
+  color: #315a87;
+}
+
+.admin-table-action-button.cancel {
+  background: #ffe2e2;
+  color: #c53030;
+}
+
+.admin-table-action-button.edit {
+  background: #edf3fb;
+  color: #315a87;
+}
+
+.admin-table-action-button.delete {
+  background: #ffe2e2;
+  color: #c53030;
+}
+
+.admin-table-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status badges */
+
+.status-badge {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.status-badge.pending {
+  background: #fff6db;
+  color: #92720c;
+}
+
+.status-badge.confirmed {
+  background: #d9fbe8;
+  color: #16834e;
+}
+
+.status-badge.checked_in {
+  background: #e6f4ff;
+  color: #1a5fb4;
+}
+
+.status-badge.checked_out {
+  background: #eef0f4;
+  color: #52657a;
+}
+
+.status-badge.cancelled {
+  background: #ffe2e2;
+  color: #c53030;
+}
+
+.status-badge.no_show {
+  background: #ffe9d6;
+  color: #b45309;
+}
+
+.status-badge.success {
+  background: #d9fbe8;
+  color: #16834e;
+}
+
+.status-badge.failed {
+  background: #ffe2e2;
+  color: #c53030;
+}
+
+.status-badge.refunded {
+  background: #eef0f4;
+  color: #52657a;
+}
+
+.status-badge.available {
+  background: #d9fbe8;
+  color: #16834e;
+}
+
+.status-badge.unavailable {
+  background: #ffe2e2;
+  color: #c53030;
+}
+
+@media (max-width: 700px) {
+  .admin-page {
+    padding: 25px 18px;
+  }
+
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .admin-table {
+    min-width: 700px;
+  }
+}
