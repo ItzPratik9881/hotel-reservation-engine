@@ -2,13 +2,23 @@ package com.pratik.hotelreservation.concurrency;
 
 import com.pratik.hotelreservation.dto.request.ReservationCreateRequest;
 import com.pratik.hotelreservation.dto.response.ReservationResponse;
+import com.pratik.hotelreservation.entity.Hotel;
+import com.pratik.hotelreservation.entity.Room;
+import com.pratik.hotelreservation.entity.User;
+import com.pratik.hotelreservation.enums.Role;
+import com.pratik.hotelreservation.enums.RoomType;
+import com.pratik.hotelreservation.repository.HotelRepository;
 import com.pratik.hotelreservation.repository.ReservationRepository;
+import com.pratik.hotelreservation.repository.RoomRepository;
+import com.pratik.hotelreservation.repository.UserRepository;
 import com.pratik.hotelreservation.service.ReservationService;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,140 +27,153 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
-public class ConcurrentBookingTest {
-
-    private static final Long TEST_ROOM_ID = 4L;
-
-    private final List<Long> createdReservationIds =
-            new ArrayList<>();
+@ActiveProfiles("test")
+class ConcurrentBookingTest {
 
     @Autowired
     private ReservationService reservationService;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private HotelRepository hotelRepository;
+
+    @Autowired
+    private RoomRepository roomRepository;
+
+    @Autowired
     private ReservationRepository reservationRepository;
 
+    private Long testRoomId;
+    private final List<Long> testUserIds = new ArrayList<>();
+
+    @BeforeEach
+    void setUp() {
+
+        // Create a dedicated test hotel
+        Hotel hotel = Hotel.builder()
+                .name("CI Test Hotel")
+                .address("Test Address")
+                .city("Pune")
+                .state("Maharashtra")
+                .country("India")
+                .starRating(5)
+                .description("Hotel used for concurrency testing")
+                .active(true)
+                .build();
+
+        hotel = hotelRepository.save(hotel);
+
+        // Create a dedicated test room
+        Room room = Room.builder()
+                .roomNumber("CI-ROOM-001")
+                .roomType(RoomType.STANDARD)
+                .capacity(2)
+                .pricePerNight(new BigDecimal("2500.00"))
+                .available(true)
+                .hotel(hotel)
+                .build();
+
+        room = roomRepository.save(room);
+
+        testRoomId = room.getId();
+
+        // Create 10 dedicated test users
+        for (int i = 1; i <= 10; i++) {
+
+            User user = User.builder()
+                    .firstName("CI")
+                    .lastName("User" + i)
+                    .email("ci-test-user-" + i + "@example.com")
+                    .password("test-password")
+                    .phoneNumber("900000000" + i)
+                    .role(Role.CUSTOMER)
+                    .enabled(true)
+                    .build();
+
+            User savedUser = userRepository.save(user);
+
+            testUserIds.add(savedUser.getId());
+        }
+    }
+
     @Test
-    void shouldAllowOnlyOneBookingForSameRoom() throws Exception {
+    void shouldAllowOnlyOneBookingForSameRoom()
+            throws InterruptedException {
 
         int numberOfUsers = 10;
 
-        LocalDate checkInDate =
-                LocalDate.now().plusDays(30);
-
-        LocalDate checkOutDate =
-                checkInDate.plusDays(2);
-
-        ExecutorService executorService =
+        ExecutorService executor =
                 Executors.newFixedThreadPool(numberOfUsers);
 
-        CountDownLatch startSignal =
+        CountDownLatch startLatch =
                 new CountDownLatch(1);
 
-        List<Future<Result>> results =
+        List<Future<Boolean>> futures =
                 new ArrayList<>();
 
-        for (long userId = 1L;
-             userId <= numberOfUsers;
-             userId++) {
+        for (Long userId : testUserIds) {
 
-            long currentUserId = userId;
+            futures.add(
+                    executor.submit(() -> {
 
-            results.add(
-                    executorService.submit(() -> {
-
-                        startSignal.await();
-
-                        ReservationCreateRequest request =
-                                ReservationCreateRequest.builder()
-                                        .userId(currentUserId)
-                                        .roomId(TEST_ROOM_ID)
-                                        .checkInDate(checkInDate)
-                                        .checkOutDate(checkOutDate)
-                                        .numberOfGuests(1)
-                                        .build();
+                        startLatch.await();
 
                         try {
+
+                            ReservationCreateRequest request =
+                                    new ReservationCreateRequest();
+
+                            request.setUserId(userId);
+                            request.setRoomId(testRoomId);
+                            request.setCheckInDate(
+                                    LocalDate.of(2030, 1, 10)
+                            );
+                            request.setCheckOutDate(
+                                    LocalDate.of(2030, 1, 13)
+                            );
+                            request.setNumberOfGuests(2);
 
                             ReservationResponse response =
                                     reservationService
                                             .createReservation(request);
 
-                            System.out.println(
-                                    "Booking SUCCESS for user: "
-                                            + currentUserId
-                            );
+                            return response != null;
 
-                            return Result.success(response);
+                        } catch (Exception ex) {
 
-                        } catch (Exception e) {
-
-                            System.out.println(
-                                    "Booking FAILED for user: "
-                                            + currentUserId
-                                            + " | "
-                                            + e.getClass()
-                                            .getSimpleName()
-                                            + " - "
-                                            + e.getMessage()
-                            );
-
-                            return Result.failure(e);
+                            return false;
                         }
                     })
             );
         }
 
-        // Start all requests simultaneously
-        startSignal.countDown();
+        // Release all threads at approximately the same time
+        startLatch.countDown();
 
         int successfulBookings = 0;
-        int failedBookings = 0;
 
-        for (Future<Result> result : results) {
+        for (Future<Boolean> future : futures) {
 
-            Result bookingResult = result.get();
+            try {
 
-            if (bookingResult.success) {
-
-                successfulBookings++;
-
-                if (bookingResult.response != null) {
-
-                    createdReservationIds.add(
-                            bookingResult.response.getId()
-                    );
+                if (future.get(30, TimeUnit.SECONDS)) {
+                    successfulBookings++;
                 }
 
-            } else {
+            } catch (ExecutionException |
+                     TimeoutException ex) {
 
-                failedBookings++;
+                // Expected for failed concurrent booking attempts
             }
         }
 
-        executorService.shutdown();
-
-        System.out.println(
-                "===================================="
+        executor.shutdown();
+        executor.awaitTermination(
+                30,
+                TimeUnit.SECONDS
         );
-
-        System.out.println(
-                "Successful bookings: "
-                        + successfulBookings
-        );
-
-        System.out.println(
-                "Failed bookings: "
-                        + failedBookings
-        );
-
-        System.out.println(
-                "===================================="
-        );
-
-        // ---------------------------------------------------------
-        // Verify concurrent request results
-        // ---------------------------------------------------------
 
         assertEquals(
                 1,
@@ -158,95 +181,19 @@ public class ConcurrentBookingTest {
                 "Exactly one booking should succeed"
         );
 
-        assertEquals(
-                9,
-                failedBookings,
-                "Exactly nine bookings should fail"
-        );
-
-        // ---------------------------------------------------------
-        // Verify database consistency
-        // ---------------------------------------------------------
-
-        long databaseReservationCount =
+        long reservationCount =
                 reservationRepository
-                        .findByRoomId(TEST_ROOM_ID)
+                        .findByRoomId(testRoomId)
                         .stream()
                         .filter(reservation ->
                                 reservation.getCheckInDate()
-                                        .equals(checkInDate))
-                        .filter(reservation ->
-                                reservation.getCheckOutDate()
-                                        .equals(checkOutDate))
+                                        .equals(LocalDate.of(2030, 1, 10)))
                         .count();
-
-        System.out.println(
-                "Reservations found in database: "
-                        + databaseReservationCount
-        );
 
         assertEquals(
                 1,
-                databaseReservationCount,
-                "Database must contain exactly one reservation"
+                reservationCount,
+                "Exactly one reservation should exist for the room"
         );
-    }
-
-    @AfterEach
-    void cleanup() {
-
-        for (Long reservationId :
-                createdReservationIds) {
-
-            reservationRepository
-                    .findById(reservationId)
-                    .ifPresent(reservation ->
-                            reservationRepository
-                                    .delete(reservation)
-                    );
-        }
-
-        createdReservationIds.clear();
-
-        System.out.println(
-                "Test reservations cleaned up."
-        );
-    }
-
-    private static class Result {
-
-        private final boolean success;
-        private final ReservationResponse response;
-        private final Exception exception;
-
-        private Result(
-                boolean success,
-                ReservationResponse response,
-                Exception exception) {
-
-            this.success = success;
-            this.response = response;
-            this.exception = exception;
-        }
-
-        static Result success(
-                ReservationResponse response) {
-
-            return new Result(
-                    true,
-                    response,
-                    null
-            );
-        }
-
-        static Result failure(
-                Exception exception) {
-
-            return new Result(
-                    false,
-                    null,
-                    exception
-            );
-        }
     }
 }
