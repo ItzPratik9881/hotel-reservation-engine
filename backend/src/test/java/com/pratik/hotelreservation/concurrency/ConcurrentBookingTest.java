@@ -12,22 +12,22 @@ import com.pratik.hotelreservation.repository.ReservationRepository;
 import com.pratik.hotelreservation.repository.RoomRepository;
 import com.pratik.hotelreservation.repository.UserRepository;
 import com.pratik.hotelreservation.service.ReservationService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
-@ActiveProfiles("test")
 class ConcurrentBookingTest {
 
     @Autowired
@@ -45,15 +45,30 @@ class ConcurrentBookingTest {
     @Autowired
     private ReservationRepository reservationRepository;
 
+    private Long testHotelId;
     private Long testRoomId;
+    private String testRunId;
+
     private final List<Long> testUserIds = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
 
-        // Create a dedicated test hotel
+        /*
+         * Generate a unique ID for every test execution.
+         *
+         * This prevents duplicate email errors when the test
+         * is executed multiple times against the same database.
+         */
+        testRunId = UUID.randomUUID()
+                .toString()
+                .substring(0, 8);
+
+        /*
+         * Create dedicated test hotel.
+         */
         Hotel hotel = Hotel.builder()
-                .name("CI Test Hotel")
+                .name("CI Test Hotel " + testRunId)
                 .address("Test Address")
                 .city("Pune")
                 .state("Maharashtra")
@@ -65,9 +80,13 @@ class ConcurrentBookingTest {
 
         hotel = hotelRepository.save(hotel);
 
-        // Create a dedicated test room
+        testHotelId = hotel.getId();
+
+        /*
+         * Create dedicated test room.
+         */
         Room room = Room.builder()
-                .roomNumber("CI-ROOM-001")
+                .roomNumber("CI-ROOM-" + testRunId)
                 .roomType(RoomType.STANDARD)
                 .capacity(2)
                 .pricePerNight(new BigDecimal("2500.00"))
@@ -79,15 +98,23 @@ class ConcurrentBookingTest {
 
         testRoomId = room.getId();
 
-        // Create 10 dedicated test users
+        /*
+         * Create 10 dedicated test users.
+         */
         for (int i = 1; i <= 10; i++) {
 
             User user = User.builder()
                     .firstName("CI")
                     .lastName("User" + i)
-                    .email("ci-test-user-" + i + "@example.com")
+                    .email(
+                            "ci-test-"
+                                    + testRunId
+                                    + "-user-"
+                                    + i
+                                    + "@example.com"
+                    )
                     .password("test-password")
-                    .phoneNumber("900000000" + i)
+                    .phoneNumber("90000000" + String.format("%02d", i))
                     .role(Role.CUSTOMER)
                     .enabled(true)
                     .build();
@@ -113,11 +140,17 @@ class ConcurrentBookingTest {
         List<Future<Boolean>> futures =
                 new ArrayList<>();
 
+        /*
+         * Create 10 concurrent booking requests.
+         */
         for (Long userId : testUserIds) {
 
             futures.add(
                     executor.submit(() -> {
 
+                        /*
+                         * Wait until all threads are ready.
+                         */
                         startLatch.await();
 
                         try {
@@ -127,12 +160,15 @@ class ConcurrentBookingTest {
 
                             request.setUserId(userId);
                             request.setRoomId(testRoomId);
+
                             request.setCheckInDate(
                                     LocalDate.of(2030, 1, 10)
                             );
+
                             request.setCheckOutDate(
                                     LocalDate.of(2030, 1, 13)
                             );
+
                             request.setNumberOfGuests(2);
 
                             ReservationResponse response =
@@ -143,13 +179,18 @@ class ConcurrentBookingTest {
 
                         } catch (Exception ex) {
 
+                            /*
+                             * Failed concurrent bookings are expected.
+                             */
                             return false;
                         }
                     })
             );
         }
 
-        // Release all threads at approximately the same time
+        /*
+         * Release all threads at approximately the same time.
+         */
         startLatch.countDown();
 
         int successfulBookings = 0;
@@ -165,29 +206,46 @@ class ConcurrentBookingTest {
             } catch (ExecutionException |
                      TimeoutException ex) {
 
-                // Expected for failed concurrent booking attempts
+                /*
+                 * A failed booking is expected.
+                 */
             }
         }
 
         executor.shutdown();
+
         executor.awaitTermination(
                 30,
                 TimeUnit.SECONDS
         );
 
+        /*
+         * Exactly one request should succeed.
+         */
         assertEquals(
                 1,
                 successfulBookings,
                 "Exactly one booking should succeed"
         );
 
+        /*
+         * Verify the database contains exactly one
+         * reservation for this room and date range.
+         */
         long reservationCount =
                 reservationRepository
                         .findByRoomId(testRoomId)
                         .stream()
                         .filter(reservation ->
                                 reservation.getCheckInDate()
-                                        .equals(LocalDate.of(2030, 1, 10)))
+                                        .equals(
+                                                LocalDate.of(
+                                                        2030,
+                                                        1,
+                                                        10
+                                                )
+                                        )
+                        )
                         .count();
 
         assertEquals(
@@ -195,5 +253,53 @@ class ConcurrentBookingTest {
                 reservationCount,
                 "Exactly one reservation should exist for the room"
         );
+    }
+
+    @AfterEach
+    void cleanup() {
+
+        /*
+         * Delete reservations first because they reference
+         * users and rooms.
+         */
+        if (testRoomId != null) {
+
+            reservationRepository
+                    .findByRoomId(testRoomId)
+                    .forEach(reservation ->
+                            reservationRepository.delete(reservation)
+                    );
+        }
+
+        /*
+         * Delete the test room.
+         */
+        if (testRoomId != null) {
+
+            roomRepository.deleteById(testRoomId);
+        }
+
+        /*
+         * Delete the test hotel.
+         */
+        if (testHotelId != null) {
+
+            hotelRepository.deleteById(testHotelId);
+        }
+
+        /*
+         * Delete the dedicated test users.
+         */
+        for (Long userId : testUserIds) {
+
+            if (userRepository.existsById(userId)) {
+                userRepository.deleteById(userId);
+            }
+        }
+
+        testUserIds.clear();
+
+        testRoomId = null;
+        testHotelId = null;
     }
 }

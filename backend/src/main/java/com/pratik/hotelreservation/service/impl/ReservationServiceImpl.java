@@ -18,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
@@ -55,6 +57,40 @@ public class ReservationServiceImpl implements ReservationService {
             );
         }
 
+        /*
+         * In the real application, @Transactional creates an active
+         * transaction synchronization context.
+         *
+         * During unit tests, the service may be called directly,
+         * without a Spring transaction. In that case there is no
+         * transaction synchronization, so the lock is released
+         * normally in finally.
+         *
+         * In the real application, the lock remains active until
+         * the database transaction has completed.
+         */
+        boolean transactionSynchronizationActive =
+                TransactionSynchronizationManager.isSynchronizationActive();
+
+        if (transactionSynchronizationActive) {
+
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+
+                        @Override
+                        public void afterCompletion(int status) {
+
+                            distributedLockService.unlock(lockKey);
+
+                            log.info(
+                                    "Reservation lock released for room ID: {}",
+                                    room.getId()
+                            );
+                        }
+                    }
+            );
+        }
+
         try {
 
             log.info(
@@ -62,52 +98,83 @@ public class ReservationServiceImpl implements ReservationService {
                     room.getId()
             );
 
+            /*
+             * Check whether the room itself is available.
+             */
             if (!room.getAvailable()) {
                 throw new BusinessException(
-                        "Room is currently unavailable");
+                        "Room is currently unavailable"
+                );
             }
 
+            /*
+             * Check guest capacity.
+             */
             if (request.getNumberOfGuests() > room.getCapacity()) {
                 throw new BusinessException(
-                        "Room capacity exceeded");
+                        "Room capacity exceeded"
+                );
             }
 
+            /*
+             * Validate reservation dates.
+             */
             if (!request.getCheckOutDate()
                     .isAfter(request.getCheckInDate())) {
 
                 throw new BusinessException(
-                        "Check-out date must be after check-in date");
+                        "Check-out date must be after check-in date"
+                );
             }
 
+            /*
+             * Check whether another reservation already exists
+             * for the requested date range.
+             *
+             * This check is protected by the distributed lock.
+             */
             boolean roomBooked =
-                reservationRepository
-                        .existsByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
-                                room.getId(),
-                                request.getCheckInDate(),
-                                request.getCheckOutDate()
-                        );
+                    reservationRepository
+                            .existsByRoomIdAndCheckOutDateGreaterThanEqualAndCheckInDateLessThanEqual(
+                                    room.getId(),
+                                    request.getCheckInDate(),
+                                    request.getCheckOutDate()
+                            );
 
             if (roomBooked) {
                 throw new BusinessException(
-                        "Room is already booked for the selected dates");
+                        "Room is already booked for the selected dates"
+                );
             }
 
+            /*
+             * Calculate total price.
+             */
             long nights = ChronoUnit.DAYS.between(
                     request.getCheckInDate(),
-                    request.getCheckOutDate());
+                    request.getCheckOutDate()
+            );
 
-            BigDecimal totalPrice = room.getPricePerNight()
-                    .multiply(BigDecimal.valueOf(nights));
+            BigDecimal totalPrice =
+                    room.getPricePerNight()
+                            .multiply(BigDecimal.valueOf(nights));
 
+            /*
+             * Create reservation entity.
+             */
             Reservation reservation =
                     reservationMapper.toEntity(request);
 
             reservation.setUser(user);
             reservation.setRoom(room);
             reservation.setBookingStatus(
-                    BookingStatus.CONFIRMED);
+                    BookingStatus.CONFIRMED
+            );
             reservation.setTotalPrice(totalPrice);
 
+            /*
+             * Save reservation.
+             */
             Reservation savedReservation =
                     reservationRepository.save(reservation);
 
@@ -120,22 +187,37 @@ public class ReservationServiceImpl implements ReservationService {
 
         } finally {
 
-            distributedLockService.unlock(lockKey);
+            /*
+             * Unit-test path:
+             *
+             * There is no active transaction synchronization,
+             * so release the Redis lock immediately.
+             *
+             * Production path:
+             *
+             * The lock is NOT released here. It is released by
+             * afterCompletion() after the transaction completes.
+             */
+            if (!transactionSynchronizationActive) {
 
-            log.info(
-                    "Reservation lock released for room ID: {}",
-                    room.getId()
-            );
+                distributedLockService.unlock(lockKey);
+
+                log.info(
+                        "Reservation lock released for room ID: {}",
+                        room.getId()
+                );
+            }
         }
     }
 
     @Override
     public ReservationResponse getReservationById(Long id) {
 
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Reservation not found"));
+        Reservation reservation =
+                reservationRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Reservation not found"));
 
         return reservationMapper.toResponse(reservation);
     }
@@ -173,11 +255,11 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public void cancelReservation(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(
-                reservationId
-        ).orElseThrow(() ->
-                new ResourceNotFoundException(
-                        "Reservation not found"));
+        Reservation reservation =
+                reservationRepository.findById(reservationId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 == BookingStatus.CHECKED_OUT) {
@@ -196,11 +278,11 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public void checkIn(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(
-                reservationId
-        ).orElseThrow(() ->
-                new ResourceNotFoundException(
-                        "Reservation not found"));
+        Reservation reservation =
+                reservationRepository.findById(reservationId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 != BookingStatus.CONFIRMED) {
@@ -219,11 +301,11 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public void checkOut(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(
-                reservationId
-        ).orElseThrow(() ->
-                new ResourceNotFoundException(
-                        "Reservation not found"));
+        Reservation reservation =
+                reservationRepository.findById(reservationId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Reservation not found"));
 
         if (reservation.getBookingStatus()
                 != BookingStatus.CHECKED_IN) {
